@@ -1,0 +1,217 @@
+# ============================================================
+#  Day-08 | PART E — Bonus Challenge (40 min)
+#  Smart Transaction Validator — Rule-Based Fraud Detection
+#  Author : [Your Name]
+#  Topics : if/elif/else, logical operators, nested conditions,
+#           ternary operator, input validation, match-case
+# ============================================================
+
+
+# ── Category spending limits (standard) ─────────────────────
+BASE_LIMITS = {
+    "food":        5_000,
+    "travel":      float("inf"),   # no explicit cap — daily limit applies
+    "electronics": 30_000,
+    "other":       float("inf"),   # no explicit cap
+}
+
+SINGLE_TXN_LIMIT = 50_000
+DAILY_LIMIT      = 100_000
+UNUSUAL_BEFORE   = 6     # hour < 6  → FLAG
+UNUSUAL_AFTER    = 23    # hour >= 23 → FLAG
+
+
+# ════════════════════════════════════════════════════════════
+#  INPUT VALIDATION HELPERS
+# ════════════════════════════════════════════════════════════
+
+def get_float(prompt: str, lo: float = 0, hi: float = float("inf")) -> float:
+    while True:
+        raw = input(prompt).strip().replace(",", "")
+        try:
+            val = float(raw)
+        except ValueError:
+            print("  ✗ Enter a numeric value.")
+            continue
+        if not (lo <= val <= hi):
+            print(f"  ✗ Must be between {lo} and {hi}.")
+            continue
+        return val
+
+
+def get_category(prompt: str) -> str:
+    valid = set(BASE_LIMITS.keys())
+    while True:
+        raw = input(prompt).strip().lower()
+        if raw in valid:
+            return raw
+        print(f"  ✗ Choose from: {' / '.join(valid)}")
+
+
+def get_int(prompt: str, lo: int, hi: int) -> int:
+    while True:
+        raw = input(prompt).strip()
+        try:
+            val = int(raw)
+        except ValueError:
+            print("  ✗ Enter a whole number.")
+            continue
+        if not (lo <= val <= hi):
+            print(f"  ✗ Must be between {lo} and {hi}.")
+            continue
+        return val
+
+
+def get_yes_no(prompt: str) -> bool:
+    while True:
+        raw = input(prompt).strip().lower()
+        if raw in ("yes", "y"):
+            return True
+        if raw in ("no", "n"):
+            return False
+        print("  ✗ Enter yes or no.")
+
+
+# ════════════════════════════════════════════════════════════
+#  CORE VALIDATOR
+# ════════════════════════════════════════════════════════════
+
+def validate_transaction(
+    amount: float,
+    category: str,
+    hour: int,
+    daily_spent: float,
+    is_vip: bool = False,
+) -> tuple[str, str]:
+    """
+    Evaluate a single transaction against fraud-detection rules.
+
+    Returns:
+        (status, reason)
+        status ∈ {"APPROVED", "FLAGGED", "BLOCKED"}
+    """
+
+    # ── BONUS: VIP doubles all limits (ternary operator) ────
+    vip_mult        = 2 if is_vip else 1
+    single_limit    = SINGLE_TXN_LIMIT * vip_mult          # ternary-style via multiplication
+    daily_limit     = DAILY_LIMIT      * vip_mult
+    cat_limit       = BASE_LIMITS.get(category, float("inf")) * vip_mult
+
+    vip_tag = " (VIP 2× limit applied)" if is_vip else ""
+
+    # ════════════════════════════════════════════════════════
+    #  RULE 1 — BLOCK: single transaction limit
+    #  Blocking rules override everything → checked first
+    # ════════════════════════════════════════════════════════
+    if amount > single_limit:
+        return (
+            "BLOCKED",
+            f"exceeds single-transaction limit "
+            f"(₹{amount:,.0f} > ₹{single_limit:,.0f}){vip_tag}"
+        )
+
+    # ════════════════════════════════════════════════════════
+    #  RULE 2 — BLOCK: daily spending cap
+    # ════════════════════════════════════════════════════════
+    if daily_spent + amount > daily_limit:
+        remaining = daily_limit - daily_spent
+        return (
+            "BLOCKED",
+            f"exceeds daily spending limit "
+            f"(already spent ₹{daily_spent:,.0f}; "
+            f"only ₹{remaining:,.0f} remaining){vip_tag}"
+        )
+
+    # ════════════════════════════════════════════════════════
+    #  RULE 3 — BLOCK: category-specific limits
+    # ════════════════════════════════════════════════════════
+    if amount > cat_limit:
+        return (
+            "BLOCKED",
+            f"exceeds {category} category limit "
+            f"(₹{amount:,.0f} > ₹{cat_limit:,.0f}){vip_tag}"
+        )
+
+    # ════════════════════════════════════════════════════════
+    #  RULE 4 — FLAG: unusual hours (soft alert, not a block)
+    # ════════════════════════════════════════════════════════
+    is_unusual_hour = hour < UNUSUAL_BEFORE or hour >= UNUSUAL_AFTER
+    if is_unusual_hour:
+        time_label = f"{hour:02d}:00"
+        return (
+            "FLAGGED",
+            f"transaction at unusual hour ({time_label}) — "
+            f"outside 06:00–22:59 window"
+        )
+
+    # ════════════════════════════════════════════════════════
+    #  ALL RULES PASSED
+    # ════════════════════════════════════════════════════════
+    return ("APPROVED", "all checks passed")
+
+
+# ════════════════════════════════════════════════════════════
+#  DISPLAY
+# ════════════════════════════════════════════════════════════
+
+def display_result(
+    amount: float,
+    category: str,
+    hour: int,
+    daily_spent: float,
+    is_vip: bool,
+    status: str,
+    reason: str,
+) -> None:
+
+    # Status icon via match-case
+    match status:
+        case "APPROVED": icon = "✅"
+        case "FLAGGED":  icon = "⚠️ "
+        case "BLOCKED":  icon = "🚫"
+        case _:          icon = "?"
+
+    vip_str = " [VIP]" if is_vip else ""
+    print("\n" + "─" * 58)
+    print(f"  Transaction  : ₹{amount:>10,.0f}  |  {category.capitalize()}{vip_str}")
+    print(f"  Time         : {hour:02d}:00")
+    print(f"  Daily so far : ₹{daily_spent:>10,.0f}")
+    print(f"  ─{'─'*54}")
+    print(f"  {icon}  {status}: {reason}")
+    print("─" * 58)
+
+    # New daily total for context
+    if status != "BLOCKED":
+        new_daily = daily_spent + amount
+        print(f"  New daily total: ₹{new_daily:,.0f}\n")
+    else:
+        print(f"  Transaction not processed. Daily total unchanged.\n")
+
+
+# ════════════════════════════════════════════════════════════
+#  ENTRY POINT
+# ════════════════════════════════════════════════════════════
+
+def main() -> None:
+    print("=" * 58)
+    print("  Smart Transaction Validator  —  Fraud Detection Engine")
+    print("=" * 58)
+
+    # ── Collect inputs ───────────────────────────────────────
+    amount       = get_float("Transaction amount (₹): ",          lo=0.01)
+    category     = get_category("Category (food / travel / electronics / other): ")
+    hour         = get_int("Hour of transaction (0–23): ",         lo=0, hi=23)
+    daily_spent  = get_float("Amount already spent today (₹): ",  lo=0)
+    is_vip       = get_yes_no("VIP account? (yes / no): ")
+
+    # ── Validate ─────────────────────────────────────────────
+    status, reason = validate_transaction(
+        amount, category, hour, daily_spent, is_vip
+    )
+
+    # ── Display ──────────────────────────────────────────────
+    display_result(amount, category, hour, daily_spent, is_vip, status, reason)
+
+
+if __name__ == "__main__":
+    main()
