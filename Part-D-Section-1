@@ -1,0 +1,19 @@
+# ════════════════════════════════════════════════════════════
+#  SECTION 1: EXACT PROMPT GIVEN TO AI
+# ════════════════════════════════════════════════════════════
+
+"""
+PROMPT USED:
+------------
+"Write a Python program that validates an Indian PAN card number
+format using if-else conditions. PAN format: 5 uppercase letters,
+4 digits, 1 uppercase letter (e.g., ABCDE1234F). The 4th character
+indicates the type of taxpayer."
+
+NOTE ON THE PROMPT:
+  - It's intentionally underspecified (no mention of regex vs
+    char-by-char, no edge cases listed, taxpayer codes undefined)
+  - This is realistic — AI must make assumptions, and our job
+    is to catch those assumptions in the critique below
+"""
+
