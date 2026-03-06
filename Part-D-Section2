@@ -1,0 +1,233 @@
+# ============================================================
+#  Day-08 | PART D — AI-Augmented Task
+#  PAN Card Validator
+# ============================================================
+
+
+# ════════════════════════════════════════════════════════════
+#  SECTION 2: AI-GENERATED CODE (pasted as-is)
+# ════════════════════════════════════════════════════════════
+
+def validate_pan_ai(pan):
+    """AI-generated version — pasted verbatim from Claude output."""
+
+    # PAN must be exactly 10 characters
+    if len(pan) != 10:
+        return False, "PAN must be exactly 10 characters"
+
+    # First 5 characters must be uppercase letters
+    for i in range(5):
+        if not pan[i].isalpha() or not pan[i].isupper():
+            return False, f"Position {i+1} must be an uppercase letter"
+
+    # Characters 6-9 must be digits
+    for i in range(5, 9):
+        if not pan[i].isdigit():
+            return False, f"Position {i+1} must be a digit"
+
+    # Last character must be an uppercase letter
+    if not pan[9].isalpha() or not pan[9].isupper():
+        return False, "Position 10 must be an uppercase letter"
+
+    # 4th character indicates taxpayer type
+    taxpayer_types = {
+        'P': 'Individual',
+        'C': 'Company',
+        'H': 'Hindu Undivided Family',
+        'F': 'Firm',
+        'A': 'Association of Persons',
+        'T': 'Trust',
+        'B': 'Body of Individuals',
+        'L': 'Local Authority',
+        'J': 'Artificial Juridical Person',
+        'G': 'Government'
+    }
+
+    fourth_char = pan[3]
+    if fourth_char in taxpayer_types:
+        taxpayer = taxpayer_types[fourth_char]
+    else:
+        taxpayer = 'Unknown type'
+
+    return True, f"Valid PAN — Taxpayer type: {taxpayer}"
+
+
+# ════════════════════════════════════════════════════════════
+#  SECTION 3: CRITICAL EVALUATION
+# ════════════════════════════════════════════════════════════
+
+"""
+EVALUATION OF AI CODE:
+======================
+
+1. POSITION VALIDATION — CORRECT ✓
+   - range(5)   checks positions 1-5 as uppercase letters
+   - range(5,9) checks positions 6-9 as digits
+   - pan[9]     checks position 10 as uppercase letter
+   - All indices are accurate. No bug here.
+
+2. EDGE CASES — PARTIALLY HANDLED ⚠
+   HANDLED:
+     - Wrong length (too short / too long)
+     - Lowercase letters → rejected
+     - Digits in letter positions → rejected
+
+   MISSING:
+     - None input   → crashes with AttributeError on len(None)
+     - Integer input → crashes with TypeError
+     - Whitespace   → " ABCPE1234F " has length 12, silently rejected
+                      instead of being stripped and accepted
+
+3. APPROACH — FUNCTIONAL BUT VERBOSE ⚠
+   - Character-by-character with isalpha() + isupper() works, but:
+     * isupper() already implies the character is alphabetic
+       so the isalpha() check is redundant on every iteration
+     * A single re.fullmatch(r'^[A-Z]{5}[0-9]{4}[A-Z]$', pan)
+       expresses the entire format rule in one readable line
+     * The prompt said "if-else conditions" which led AI to avoid
+       regex — but this produced more verbose, harder-to-maintain code
+
+4. PYTHONIC QUALITY — MIXED ⚠
+   NOT PYTHONIC:
+     - pan[i].isalpha() and pan[i].isupper() → just isupper() is enough
+     - if fourth_char in taxpayer_types: ... else: ... 
+       → should use dict.get(key, default) — that's the Pythonic idiom
+     - No if __name__ == "__main__" guard on driver code
+     - Taxpayer dict rebuilt fresh on every function call
+       → should be a module-level constant
+
+VERDICT:
+  The AI gave a working solution for the happy path (valid format,
+  clean string input). It fails silently or crashes on real-world
+  messy inputs. The code style is functional but not idiomatic Python.
+"""
+
+
+# ════════════════════════════════════════════════════════════
+#  SECTION 4: IMPROVED VERSION
+# ════════════════════════════════════════════════════════════
+
+import re
+
+# Fix: taxpayer map as module-level constant (not rebuilt each call)
+TAXPAYER_TYPES = {
+    'P': 'Individual (Person)',
+    'C': 'Company',
+    'H': 'Hindu Undivided Family (HUF)',
+    'F': 'Firm / LLP',
+    'A': 'Association of Persons (AOP)',
+    'T': 'Trust / AOP (Trusts)',
+    'B': 'Body of Individuals (BOI)',
+    'L': 'Local Authority',
+    'J': 'Artificial Juridical Person',
+    'G': 'Government Entity',
+}
+
+# Fix: regex expresses the full structure rule in one line
+PAN_REGEX = re.compile(r'^[A-Z]{5}[0-9]{4}[A-Z]$')
+
+
+def validate_pan(raw_input) -> tuple[bool, str]:
+    """
+    Validate an Indian PAN card number.
+
+    Improvements over AI version:
+      ① Type guard    — handles None and non-string inputs gracefully
+      ② Normalise     — strips whitespace, auto-uppercases input
+      ③ Regex check   — fast structural validation in one line,
+                         falls through to char-by-char for error detail
+      ④ isupper()     — removed redundant isalpha() check
+      ⑤ dict.get()    — Pythonic taxpayer lookup replaces if/else
+      ⑥ 5th char      — surname/entity initial surfaced in output
+      ⑦ __main__ guard — driver code protected
+
+    Returns:
+        (True,  success_message)  if valid
+        (False, reason_message)   if invalid
+    """
+
+    # ① Type guard — reject None and non-strings before any other check
+    if raw_input is None or not isinstance(raw_input, str):
+        return False, "Invalid input: expected a string"
+
+    # ② Normalise — strip whitespace, convert to uppercase
+    pan = raw_input.strip().upper()
+
+    # Fast length check before regex
+    if len(pan) != 10:
+        return False, f"Length must be 10 characters (got {len(pan)})"
+
+    # ③ Regex structural check — if it fails, give per-position detail
+    if not PAN_REGEX.match(pan):
+        for i in range(5):              # positions 1-5: uppercase letter
+            if not pan[i].isupper():    # ④ isupper() implies alpha
+                return False, (
+                    f"Position {i+1} must be an uppercase letter "
+                    f"(got '{pan[i]}')"
+                )
+        for i in range(5, 9):           # positions 6-9: digit
+            if not pan[i].isdigit():
+                return False, (
+                    f"Position {i+1} must be a digit "
+                    f"(got '{pan[i]}')"
+                )
+        if not pan[9].isupper():        # position 10: uppercase letter
+            return False, (
+                f"Position 10 must be an uppercase letter "
+                f"(got '{pan[9]}')"
+            )
+
+    # ⑤ dict.get() — cleaner than if/else for taxpayer lookup
+    taxpayer = TAXPAYER_TYPES.get(pan[3], 'Unrecognised taxpayer code')
+
+    # ⑥ 5th character = first letter of surname / entity name
+    return True, (
+        f"Valid PAN    : {pan}\n"
+        f"Taxpayer type: {taxpayer}  (4th char '{pan[3]}')\n"
+        f"Name initial : '{pan[4]}'  (5th char → surname/entity)"
+    )
+
+
+# ════════════════════════════════════════════════════════════
+#  SECTION 5: TEST RUNNER
+# ════════════════════════════════════════════════════════════
+
+# ⑦ __main__ guard
+if __name__ == "__main__":
+
+    print("=" * 60)
+    print("  AI OUTPUT vs IMPROVED — Test Comparison")
+    print("=" * 60)
+
+    test_cases = [
+        ("ABCPE1234F",     "happy path — Individual"),
+        ("abcpe1234f",     "lowercase → should normalise"),
+        (" ABCPE1234F ",   "whitespace → should strip"),
+        ("ABCDE1234F",     "4th char 'D' → unrecognised type"),
+        ("ABC1E1234F",     "digit at pos 4"),
+        ("ABCPE12345",     "digit at pos 10"),
+        ("ABCPE123",       "too short"),
+        (None,             "None input"),
+        (12345,            "integer input"),
+    ]
+
+    for raw, description in test_cases:
+        print(f"\n  Test : {description}")
+        print(f"  Input: {repr(raw)}")
+
+        # AI version (wrap in try/except since it can crash)
+        try:
+            ai_valid, ai_msg = validate_pan_ai(raw)
+            ai_status = "VALID" if ai_valid else "INVALID"
+            print(f"  AI   : {ai_status} — {ai_msg}")
+        except Exception as e:
+            print(f"  AI   : CRASHED — {type(e).__name__}: {e}")
+
+        # Improved version
+        valid, msg = validate_pan(raw)
+        status = "VALID" if valid else "INVALID"
+        print(f"  Mine : {status}")
+        for line in msg.splitlines():
+            print(f"         {line}")
+
+    print("\n" + "=" * 60)
